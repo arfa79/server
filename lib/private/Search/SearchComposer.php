@@ -28,13 +28,16 @@ declare(strict_types=1);
 namespace OC\Search;
 
 use InvalidArgumentException;
-use OCP\AppFramework\QueryException;
-use OCP\IServerContainer;
+use OC\AppFramework\Bootstrap\Coordinator;
 use OCP\IUser;
+use OCP\Search\FilterCollection;
+use OCP\Search\IFilter;
 use OCP\Search\IProvider;
+use OCP\Search\IProviderV2;
 use OCP\Search\ISearchQuery;
 use OCP\Search\SearchResult;
-use OC\AppFramework\Bootstrap\Coordinator;
+use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use function array_map;
 
@@ -58,31 +61,38 @@ use function array_map;
  * @see IProvider::search() for the arguments of the individual search requests
  */
 class SearchComposer {
-	/** @var IProvider[] */
-	private $providers = [];
+	/**
+	 * @var IProvider[]
+	 */
+	private array $providers = [];
 
-	/** @var Coordinator */
-	private $bootstrapCoordinator;
+	private const FILTERS = [
+		'term' => 'string',
+		'since' => 'datetime',
+		'until' => 'datetime',
+		'title-only' => 'boolean',
+		'person' => 'person',
+		'places' => 'strings',
+		'provider' => 'string',
+	];
+	private array $customFilters = [];
 
-	/** @var IServerContainer */
-	private $container;
+	private array $handlers = [];
 
-	private LoggerInterface $logger;
-
-	public function __construct(Coordinator $bootstrapCoordinator,
-								IServerContainer $container,
-								LoggerInterface $logger) {
-		$this->container = $container;
-		$this->logger = $logger;
-		$this->bootstrapCoordinator = $bootstrapCoordinator;
+	public function __construct(
+		private Coordinator $bootstrapCoordinator,
+		private ContainerInterface $container,
+		private LoggerInterface $logger
+	) {
 	}
 
 	/**
 	 * Load all providers dynamically that were registered through `registerProvider`
 	 *
+	 * If $targetProviderId is provided, only this provider is loaded
 	 * If a provider can't be loaded we log it but the operation continues nevertheless
 	 */
-	private function loadLazyProviders(): void {
+	private function loadLazyProviders(?string $targetProviderId = null): void {
 		$context = $this->bootstrapCoordinator->getRegistrationContext();
 		if ($context === null) {
 			// Too early, nothing registered yet
@@ -93,15 +103,57 @@ class SearchComposer {
 		foreach ($registrations as $registration) {
 			try {
 				/** @var IProvider $provider */
-				$provider = $this->container->query($registration->getService());
-				$this->providers[$provider->getId()] = $provider;
-			} catch (QueryException $e) {
+				$provider = $this->container->get($registration->getService());
+				$providerId = $provider->getId();
+				if ($targetProviderId !== null && $targetProviderId !== $providerId) {
+					continue;
+				}
+				$this->providers[$providerId] = $provider;
+				$this->handlers[$providerId] = [$providerId];
+				if ($targetProviderId !== null) {
+					break;
+				}
+			} catch (ContainerExceptionInterface $e) {
 				// Log an continue. We can be fault tolerant here.
 				$this->logger->error('Could not load search provider dynamically: ' . $e->getMessage(), [
 					'exception' => $e,
 					'app' => $registration->getAppId(),
 				]);
 			}
+		}
+
+		$this->loadFilters();
+	}
+
+	private function loadFilters(): void {
+		foreach ($this->providers as $providerId => $provider) {
+			if (!$provider instanceof IProviderV2) {
+				continue;
+			}
+
+			foreach ($provider->registerCustomFilters() as $name => $filter) {
+				$this->registerCustomFilter($name, $filter, $provider->getId());
+			}
+			foreach ($provider->getAlternateIds() as $alternateId) {
+				$this->handlers[$alternateId][] = $providerId;
+			}
+			foreach ($provider->getSupportedFilters() as $filterName) {
+				if (!isset(self::FILTERS[$filterName]) && !isset($this->customFilters[$providerId][$filterName])) {
+					throw new InvalidArgumentException('Invalid filter '. $filterName);
+				}
+			}
+		}
+	}
+
+	private function registerCustomFilter(string $name, string $filter, string $providerId): void {
+		if (!preg_match('/[-0-9a-z]+/Au', $name)) {
+			throw new InvalidArgumentException('Invalid filter name. Allowed characters are [-0-9a-z]');
+		}
+
+		if (isset($this->customFilters[$providerId])) {
+			$this->customFilters[$providerId][$name] = $filter;
+		} else {
+			$this->customFilters[$providerId] = [$name => $filter];
 		}
 	}
 
@@ -119,10 +171,22 @@ class SearchComposer {
 
 		$providers = array_values(
 			array_map(function (IProvider $provider) use ($route, $routeParameters) {
+				$triggers = [$provider->getId()];
+				if ($provider instanceof IProviderV2) {
+					$triggers = $provider->getAlternateIds();
+					$triggers[] = $provider->getId();
+					$filters = $provider->getSupportedFilters();
+				} else {
+					$triggers = [$provider->getId()];
+					$filters = ['term'];
+				}
+
 				return [
 					'id' => $provider->getId(),
 					'name' => $provider->getName(),
 					'order' => $provider->getOrder($route, $routeParameters),
+					'triggers' => $triggers,
+					'filters' => $this->getFiltersType($filters, $provider->getId()),
 				];
 			}, $this->providers)
 		);
@@ -138,6 +202,52 @@ class SearchComposer {
 	}
 
 	/**
+	 * @param $filters string[]
+	 * @return array{string, string}
+	 */
+	private function getFiltersType(array $filters, string $providerId): array {
+		$filterList = [];
+		foreach ($filters as $filter) {
+			$filterList[$filter] = $this->getFilterType($filter, $providerId);
+		}
+
+		return $filterList;
+	}
+
+	private function getFilterType(string $filter, string $providerId): ?string {
+		return match (true) {
+			isset(self::FILTERS[$filter]) => self::FILTERS[$filter],
+			isset($this->customFilters[$providerId][$filter]) => $this->customFilters[$providerId][$filter],
+			default => null,
+		};
+	}
+
+	public function buildFilterList(string $providerId, array $filters): FilterCollection {
+		$this->loadLazyProviders($providerId);
+
+		$list = [];
+		foreach ($filters as $filter => $value) {
+			$list[$filter] = $this->buildFilter($filter, $value, $providerId);
+		}
+
+		return new FilterCollection(... array_filter($list));
+	}
+
+	private function buildFilter(string $filter, string $value, string $providerId): ?IFilter {
+		$filterType = $this->getFilterType($filter, $providerId);
+		if ($filterType === null) {
+			$this->logger->debug('Unable to find {filter} definition', [
+				'filter' => $filter,
+				'value' => $value,
+			]);
+
+			return null;
+		}
+
+		return FilterFactory::get($filterType, $value);
+	}
+
+	/**
 	 * Query an individual search provider for results
 	 *
 	 * @param IUser $user
@@ -147,15 +257,18 @@ class SearchComposer {
 	 * @return SearchResult
 	 * @throws InvalidArgumentException when the $providerId does not correspond to a registered provider
 	 */
-	public function search(IUser $user,
-						   string $providerId,
-						   ISearchQuery $query): SearchResult {
-		$this->loadLazyProviders();
+	public function search(
+		IUser $user,
+		string $providerId,
+		ISearchQuery $query,
+	): SearchResult {
+		$this->loadLazyProviders($providerId);
 
 		$provider = $this->providers[$providerId] ?? null;
 		if ($provider === null) {
 			throw new InvalidArgumentException("Provider $providerId is unknown");
 		}
+
 		return $provider->search($user, $query);
 	}
 }

@@ -3967,15 +3967,6 @@
                 ],
                 "parameters": [
                     {
-                        "name": "term",
-                        "in": "query",
-                        "description": "Term to search",
-                        "schema": {
-                            "type": "string",
-                            "default": ""
-                        }
-                    },
-                    {
                         "name": "sortOrder",
                         "in": "query",
                         "description": "Order of entries",

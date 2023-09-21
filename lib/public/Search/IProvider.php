@@ -38,6 +38,7 @@ use OCP\IUser;
  * register one provider per group.
  *
  * @since 20.0.0
+ * @deprecated 28.0.0 Uses IProviderV2 instead to support advanced search
  */
 interface IProvider {
 	/**

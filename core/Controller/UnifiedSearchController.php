@@ -28,12 +28,13 @@ declare(strict_types=1);
  */
 namespace OC\Core\Controller;
 
+use OC\Search\InvalidFilter;
 use OC\Search\SearchComposer;
 use OC\Search\SearchQuery;
 use OCA\Core\ResponseDefinitions;
-use OCP\AppFramework\OCSController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\OCSController;
 use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\IUserSession;
@@ -83,7 +84,6 @@ class UnifiedSearchController extends OCSController {
 	 * Search
 	 *
 	 * @param string $providerId ID of the provider
-	 * @param string $term Term to search
 	 * @param int|null $sortOrder Order of entries
 	 * @param int|null $limit Maximum amount of entries
 	 * @param int|string|null $cursor Offset for searching
@@ -95,22 +95,26 @@ class UnifiedSearchController extends OCSController {
 	 * 400: Searching is not possible
 	 */
 	public function search(string $providerId,
-						   string $term = '',
-						   ?int $sortOrder = null,
-						   ?int $limit = null,
-						   $cursor = null,
-						   string $from = ''): DataResponse {
-		if (trim($term) === "") {
-			return new DataResponse(null, Http::STATUS_BAD_REQUEST);
-		}
+		?int $sortOrder = null,
+		?int $limit = null,
+		$cursor = null,
+		string $from = ''): DataResponse {
 		[$route, $routeParameters] = $this->getRouteInformation($from);
+
+		ini_set('html_errors', '0');
+		try {
+			$filters = $this->composer->buildFilterList($providerId, $this->request->getParams());
+		} catch (InvalidFilter $e) {
+			// Unsupported filter, send empty answer
+			return new DataResponse([], Http::STATUS_OK);
+		}
 
 		return new DataResponse(
 			$this->composer->search(
 				$this->userSession->getUser(),
 				$providerId,
 				new SearchQuery(
-					$term,
+					$filters,
 					$sortOrder ?? ISearchQuery::SORT_DATE_DESC,
 					$limit ?? SearchQuery::LIMIT_DEFAULT,
 					$cursor,
