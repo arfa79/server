@@ -42,7 +42,6 @@ use Sabre\VObject\Property;
  * @package OCA\DAV\Search
  */
 class EventsSearchProvider extends ACalendarSearchProvider {
-
 	/**
 	 * @var string[]
 	 */
@@ -95,8 +94,10 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 	/**
 	 * @inheritDoc
 	 */
-	public function search(IUser $user,
-						   ISearchQuery $query): SearchResult {
+	public function search(
+		IUser $user,
+		ISearchQuery $query,
+	): SearchResult {
 		if (!$this->appManager->isEnabledForUser('calendar', $user)) {
 			return SearchResult::complete($this->getName(), []);
 		}
@@ -107,13 +108,15 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 
 		$searchResults = $this->backend->searchPrincipalUri(
 			$principalUri,
-			$query->getTerm(),
+			$query->getFilter('term')?->get() ?? '',
 			[self::$componentType],
 			self::$searchProperties,
 			self::$searchParameters,
 			[
 				'limit' => $query->getLimit(),
 				'offset' => $query->getCursor(),
+				'since' => $query->getFilter('since'),
+				'until' => $query->getFilter('until'),
 			]
 		);
 		$formattedResults = \array_map(function (array $eventRow) use ($calendarsById, $subscriptionsById):SearchResultEntry {
@@ -138,15 +141,11 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 		);
 	}
 
-	/**
-	 * @param string $principalUri
-	 * @param string $calendarUri
-	 * @param string $calendarObjectUri
-	 * @return string
-	 */
-	protected function getDeepLinkToCalendarApp(string $principalUri,
-												string $calendarUri,
-												string $calendarObjectUri): string {
+	protected function getDeepLinkToCalendarApp(
+		string $principalUri,
+		string $calendarUri,
+		string $calendarObjectUri,
+	): string {
 		$davUrl = $this->getDavUrlForCalendarObject($principalUri, $calendarUri, $calendarObjectUri);
 		// This route will automatically figure out what recurrence-id to open
 		return $this->urlGenerator->getAbsoluteURL(
@@ -156,15 +155,9 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 		);
 	}
 
-	/**
-	 * @param string $principalUri
-	 * @param string $calendarUri
-	 * @param string $calendarObjectUri
-	 * @return string
-	 */
 	protected function getDavUrlForCalendarObject(string $principalUri,
-												  string $calendarUri,
-												  string $calendarObjectUri): string {
+		string $calendarUri,
+		string $calendarObjectUri): string {
 		[,, $principalId] = explode('/', $principalUri, 3);
 
 		return $this->urlGenerator->linkTo('', 'remote.php') . '/dav/calendars/'
@@ -173,10 +166,6 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 			. $calendarObjectUri;
 	}
 
-	/**
-	 * @param Component $eventComponent
-	 * @return string
-	 */
 	protected function generateSubline(Component $eventComponent): string {
 		$dtStart = $eventComponent->DTSTART;
 		$dtEnd = $this->getDTEndForEvent($eventComponent);
@@ -207,10 +196,6 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 		return "$formattedStartDate $formattedStartTime - $formattedEndDate $formattedEndTime";
 	}
 
-	/**
-	 * @param Component $eventComponent
-	 * @return Property
-	 */
 	protected function getDTEndForEvent(Component $eventComponent):Property {
 		if (isset($eventComponent->DTEND)) {
 			$end = $eventComponent->DTEND;
@@ -233,13 +218,10 @@ class EventsSearchProvider extends ACalendarSearchProvider {
 		return $end;
 	}
 
-	/**
-	 * @param \DateTime $dtStart
-	 * @param \DateTime $dtEnd
-	 * @return bool
-	 */
-	protected function isDayEqual(\DateTime $dtStart,
-								  \DateTime $dtEnd) {
+	protected function isDayEqual(
+		\DateTime $dtStart,
+		\DateTime $dtEnd,
+	): bool {
 		return $dtStart->format('Y-m-d') === $dtEnd->format('Y-m-d');
 	}
 }
