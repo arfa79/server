@@ -22,7 +22,7 @@
 <template>
 	<NcButton :aria-label="sortAriaLabel(name)"
 		:class="{'files-list__column-sort-button--active': sortingMode === mode}"
-		:alignment="mode !== 'size' ? 'start-reverse' : ''"
+		:alignment="mode !== 'size' ? 'start-reverse' : undefined"
 		class="files-list__column-sort-button"
 		type="tertiary"
 		@click.stop.prevent="toggleSortBy(mode)">
@@ -68,12 +68,8 @@ export default Vue.extend({
 
 	methods: {
 		sortAriaLabel(column) {
-			const direction = this.isAscSorting
-				? this.t('files', 'ascending')
-				: this.t('files', 'descending')
-			return this.t('files', 'Sort list by {column} ({direction})', {
+			return this.t('files', 'Sort list by {column}', {
 				column,
-				direction,
 			})
 		},
 
