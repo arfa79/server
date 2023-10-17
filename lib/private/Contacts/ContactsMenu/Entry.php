@@ -29,6 +29,7 @@ namespace OC\Contacts\ContactsMenu;
 
 use OCP\Contacts\ContactsMenu\IAction;
 use OCP\Contacts\ContactsMenu\IEntry;
+use function array_merge;
 
 class Entry implements IEntry {
 	/** @var string|int|null */
@@ -139,11 +140,15 @@ class Entry implements IEntry {
 		});
 	}
 
+	public function setProperty(string $propertyName, mixed $value) {
+		$this->properties[$propertyName] = $value;
+	}
+
 	/**
-	 * @param array $contact key-value array containing additional properties
+	 * @param array $properties key-value array containing additional properties
 	 */
-	public function setProperties(array $contact): void {
-		$this->properties = $contact;
+	public function setProperties(array $properties): void {
+		$this->properties = array_merge($this->properties, $properties);
 	}
 
 	public function getProperty(string $key): mixed {
@@ -175,6 +180,8 @@ class Entry implements IEntry {
 			'status' => $this->status,
 			'statusMessage' => $this->statusMessage,
 			'statusIcon' => $this->statusIcon,
+			'isUser' => $this->getProperty('isUser') === true,
+			'uid' => $this->getProperty('UID'),
 		];
 	}
 }

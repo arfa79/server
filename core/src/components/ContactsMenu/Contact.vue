@@ -25,27 +25,34 @@
 			:href="contact.profileUrl"
 			class="contact__avatar-wrapper">
 			<NcAvatar class="contact__avatar"
-				:is-no-user="true"
+				:user="contact.isUser ? contact.uid : undefined"
+				:is-no-user="!contact.isUser"
 				:display-name="contact.avatarLabel"
-				:url="contact.avatar" />
+				:url="contact.avatar"
+				:preloaded-user-status="preloadedUserStatus" />
 		</a>
 		<a v-else-if="contact.profileUrl"
 			:href="contact.profileUrl">
 			<NcAvatar class="contact__avatar"
-				:is-no-user="true"
-				:display-name="contact.avatarLabel" />
+				:user="contact.isUser ? contact.uid : undefined"
+				:is-no-user="!contact.isUser"
+				:display-name="contact.avatarLabel"
+				:preloaded-user-status="preloadedUserStatus" />
 		</a>
 		<NcAvatar v-else
 			class="contact__avatar"
-			:is-no-user="true"
+			:user="contact.isUser ? contact.uid : undefined"
+			:is-no-user="!contact.isUser"
 			:display-name="contact.avatarLabel"
-			:url="contact.avatar" />
+			:url="contact.avatar"
+			:preloaded-user-status="preloadedUserStatus" />
 
 		<a class="contact__body"
 			:href="contact.profileUrl || contact.topAction?.hyperlink">
 			<div class="contact__body__full-name">{{ contact.fullName }}</div>
 			<div v-if="contact.lastMessage" class="contact__body__last-message">{{ contact.lastMessage }}</div>
-			<div class="contact__body__email-address">{{ contact.emailAddresses[0] }}</div>
+			<div v-if="contact.statusMessage" class="contact__body__status-message">{{ contact.statusMessage }}</div>
+			<div v-else class="contact__body__email-address">{{ contact.emailAddresses[0] }}</div>
 		</a>
 		<NcActions v-if="actions.length"
 			:inline="contact.topAction ? 1 : 0">
@@ -97,6 +104,16 @@ export default {
 			}
 			return this.contact.actions
 		},
+		preloadedUserStatus() {
+			if (this.contact.status) {
+				return {
+					status: this.contact.status,
+					message: this.contact.statusMessage,
+					icon: this.contact.statusIcon,
+				}
+			}
+			return undefined
+		}
 	},
 }
 </script>
@@ -143,7 +160,7 @@ export default {
 			text-overflow: ellipsis;
 		}
 
-		.last-message, .email-address {
+		&__last-message, &__status-message, &__email-address {
 			color: var(--color-text-maxcontrast);
 		}
 	}
