@@ -66,7 +66,7 @@ declare global {
 			/**
 			 * Run an occ command in the docker container.
 			 */
-			runOccCommand(command: string): Cypress.Chainable<void>,
+			runOccCommand(command: string): Cypress.Chainable<Cypress.Exec>,
 		}
 	}
 }
@@ -216,5 +216,5 @@ Cypress.Commands.add('resetUserTheming', (user?: User) => {
 })
 
 Cypress.Commands.add('runOccCommand', (command: string) => {
-	cy.exec(`docker exec --user www-data nextcloud-cypress-tests-server php ./occ ${command}`)
+	return cy.exec(`docker exec --user www-data nextcloud-cypress-tests-server php ./occ ${command}`)
 })

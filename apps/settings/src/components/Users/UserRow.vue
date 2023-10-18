@@ -112,7 +112,7 @@
 			</span>
 		</td>
 
-		<td class="row__cell row__cell--large row__cell--multiline">
+		<td class="row__cell row__cell--large row__cell--multiline" data-cy-cell="groups">
 			<template v-if="editing">
 				<label class="hidden-visually"
 					:for="'groups' + uniqueId">
