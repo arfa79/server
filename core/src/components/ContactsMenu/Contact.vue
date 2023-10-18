@@ -25,6 +25,7 @@
 			:href="contact.profileUrl"
 			class="contact__avatar-wrapper">
 			<NcAvatar class="contact__avatar"
+				:size="44"
 				:user="contact.isUser ? contact.uid : undefined"
 				:is-no-user="!contact.isUser"
 				:display-name="contact.avatarLabel"
@@ -34,12 +35,14 @@
 		<a v-else-if="contact.profileUrl"
 			:href="contact.profileUrl">
 			<NcAvatar class="contact__avatar"
+				:size="44"
 				:user="contact.isUser ? contact.uid : undefined"
 				:is-no-user="!contact.isUser"
 				:display-name="contact.avatarLabel"
 				:preloaded-user-status="preloadedUserStatus" />
 		</a>
 		<NcAvatar v-else
+			:size="44"
 			class="contact__avatar"
 			:user="contact.isUser ? contact.uid : undefined"
 			:is-no-user="!contact.isUser"
@@ -139,18 +142,15 @@ export default {
 	}
 
 	&__avatar-wrapper {
-		height: 32px;
 	}
 
 	&__avatar {
-		height: 32px;
-		width: 32px;
 		display: inherit;
 	}
 
 	&__body {
 		flex-grow: 1;
-		padding-left: 8px;
+		padding-left: 10px;
 		min-width: 0;
 
 		div {
@@ -158,6 +158,13 @@ export default {
 			width: 100%;
 			overflow-x: hidden;
 			text-overflow: ellipsis;
+			margin: -1px 0;
+		}
+		div:first-of-type {
+			margin-top: 0;
+		}
+		div:last-of-type {
+			margin-bottom: 0;
 		}
 
 		&__last-message, &__status-message, &__email-address {
