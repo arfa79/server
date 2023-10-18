@@ -25,33 +25,41 @@ declare(strict_types=1);
 
 namespace OCA\UserStatus\ContactsMenu;
 
+use OCA\UserStatus\Db\UserStatus;
 use OCA\UserStatus\Service\StatusService;
-use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\Contacts\ContactsMenu\IBulkProvider;
 use OCP\Contacts\ContactsMenu\IEntry;
-use OCP\Contacts\ContactsMenu\IProvider;
+use function array_combine;
+use function array_filter;
+use function array_map;
 
-class StatusProvider implements IProvider {
+class StatusProvider implements IBulkProvider {
 
 	public function __construct(private StatusService $statusService) {
 	}
 
-	public function process(IEntry $entry): void {
-		$uid = $entry->getProperty('UID');
-		if ($uid === null) {
-			return;
-		}
-
-		try {
-			$status = $this->statusService->findByUserId($uid);
-		} catch (DoesNotExistException $e) {
-			return;
-		}
-
-		$entry->setStatus(
-			$status->getStatus(),
-			$status->getCustomMessage(),
-			$status->getCustomIcon(),
+	public function process(array $entries): void {
+		$uids = array_filter(
+			array_map(fn (IEntry $entry) => $entry->getProperty('UID'), $entries)
 		);
+
+		$statuses = $this->statusService->findByUserIds($uids);
+		$indexed = array_combine(
+			array_map(fn(UserStatus $status) => $status->getUserId(), $statuses),
+			$statuses
+		);
+
+		foreach ($entries as $entry) {
+			$uid = $entry->getProperty('UID');
+			if ($uid !== null && isset($indexed[$uid])) {
+				$status = $indexed[$uid];
+				$entry->setStatus(
+					$status->getStatus(),
+					$status->getCustomMessage(),
+					$status->getCustomIcon(),
+				);
+			}
+		}
 	}
 
 }

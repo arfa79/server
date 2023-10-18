@@ -33,6 +33,7 @@ use OC\Contacts\ContactsMenu\Providers\EMailProvider;
 use OC\Contacts\ContactsMenu\Providers\LocalTimeProvider;
 use OC\Contacts\ContactsMenu\Providers\ProfileProvider;
 use OCP\AppFramework\QueryException;
+use OCP\Contacts\ContactsMenu\IBulkProvider;
 use OCP\Contacts\ContactsMenu\IProvider;
 use OCP\IServerContainer;
 use OCP\IUser;
@@ -47,7 +48,7 @@ class ActionProviderStore {
 	}
 
 	/**
-	 * @return IProvider[]
+	 * @return list<IProvider|IBulkProvider>
 	 * @throws Exception
 	 */
 	public function getProviders(IUser $user): array {
