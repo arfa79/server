@@ -13,6 +13,7 @@ use OC\FilesMetadata\Service\IndexRequestService;
 use OC\FilesMetadata\Service\MetadataRequestService;
 use OCP\BackgroundJob\IJobList;
 use OCP\DB\Exception;
+use OCP\DB\Exception as DBException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Files\Events\Node\NodeCreatedEvent;
@@ -107,23 +108,19 @@ class FilesMetadataManager implements IFilesMetadataManager {
 		}
 
 		try {
-			// if update request changed no rows, means that new entry is needed, or sync_token not valid anymore
-			$updated = $this->metadataRequestService->updateMetadata($filesMetadata);
-			if ($updated === 0) {
+			if ($filesMetadata->getSyncToken() === '') {
 				$this->metadataRequestService->store($filesMetadata);
+			} else {
+				$this->metadataRequestService->updateMetadata($filesMetadata);
 			}
-		} catch (\OCP\DB\Exception $e) {
-			// if duplicate, only means a desync during update. cancel update process.
-			if ($e->getReason() !== Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
-				$this->logger->warning(
-					'issue while saveMetadata', ['exception' => $e, 'metadata' => $filesMetadata]
-				);
-			}
+		} catch (DBException $e) {
+			// most of the logged exception are the result of race condition
+			// between 2 simultaneous process trying to create/update metadata
+			$this->logger->warning('issue while saveMetadata', ['exception' => $e, 'metadata' => $filesMetadata]);
 
 			return;
 		}
 
-//		$this->removeDeprecatedMetadata($filesMetadata);
 		foreach ($filesMetadata->getIndexes() as $index) {
 			try {
 				$this->indexRequestService->updateIndex($filesMetadata, $index);

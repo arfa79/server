@@ -69,9 +69,9 @@ interface IFilesMetadata extends JsonSerializable {
 	public function getStringList(string $key): array;
 	public function getIntList(string $key): array;
 	public function getType(string $key): string;
-	public function set(string $key, string $value): self;
-	public function setInt(string $key, int $value): self;
-	public function setFloat(string $key, float $value): self;
+	public function set(string $key, string $value, bool $index = false): self;
+	public function setInt(string $key, int $value, bool $index = false): self;
+	public function setFloat(string $key, float $value, bool $index = false): self;
 	public function setBool(string $key, bool $value): self;
 	public function setArray(string $key, array $value): self;
 	public function setStringList(string $key, array $value): self;

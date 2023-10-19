@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OC\FilesMetadata\Service;
 
-use JsonException;
 use OC\FilesMetadata\Model\FilesMetadata;
 use OCP\DB\Exception;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -34,7 +33,7 @@ class MetadataRequestService {
 		$qb->insert(self::TABLE_METADATA)
 		   ->setValue('file_id', $qb->createNamedParameter($filesMetadata->getFileId(), IQueryBuilder::PARAM_INT))
 		   ->setValue('json', $qb->createNamedParameter(json_encode($filesMetadata->jsonSerialize())))
-		   ->setValue('sync_token', $qb->createNamedParameter($filesMetadata->getSyncToken()))
+		   ->setValue('sync_token', $qb->createNamedParameter($this->generateSyncToken()))
 		   ->setValue('last_update', $qb->createFunction('NOW()'));
 		$qb->executeStatement();
 	}
@@ -48,13 +47,17 @@ class MetadataRequestService {
 	public function getMetadataFromFileId(int $fileId): IFilesMetadata {
 		try {
 			$qb = $this->dbConnection->getQueryBuilder();
-			$qb->select('json')->from(self::TABLE_METADATA);
-			$qb->where($qb->expr()->eq('file_id', $qb->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)));
+			$qb->select('json', 'sync_token')->from(self::TABLE_METADATA);
+			$qb->where(
+				$qb->expr()->eq('file_id', $qb->createNamedParameter($fileId, IQueryBuilder::PARAM_INT))
+			);
 			$result = $qb->executeQuery();
 			$data = $result->fetch();
 			$result->closeCursor();
 		} catch (Exception $e) {
-			$this->logger->warning('exception while getMetadataFromDatabase()', ['exception' => $e, 'fileId' => $fileId]);
+			$this->logger->warning(
+				'exception while getMetadataFromDatabase()', ['exception' => $e, 'fileId' => $fileId]
+			);
 			throw new FilesMetadataNotFoundException();
 		}
 
@@ -67,7 +70,6 @@ class MetadataRequestService {
 
 		return $metadata;
 	}
-
 
 	/**
 	 * @param int $fileId
@@ -82,17 +84,6 @@ class MetadataRequestService {
 		$qb->executeStatement();
 	}
 
-	private function removeDeprecatedMetadata(IFilesMetadata $filesMetadata): void {
-		// TODO delete aussi les index generate a partir d'une string[]
-
-		$qb = $this->dbConnection->getQueryBuilder();
-		$qb->delete(self::TABLE_METADATA_INDEX)
-		   ->where($qb->expr()->eq('file_id', $qb->createNamedParameter($filesMetadata->getFileId(), IQueryBuilder::PARAM_INT)))
-		   ->andWhere($qb->expr()->notIn('file_id', $filesMetadata->getIndexes(), IQueryBuilder::PARAM_STR_ARRAY));
-		$qb->executeStatement();
-	}
-
-
 	/**
 	 * @param IFilesMetadata $filesMetadata
 	 *
@@ -100,14 +91,36 @@ class MetadataRequestService {
 	 * @throws Exception
 	 */
 	public function updateMetadata(IFilesMetadata $filesMetadata): int {
-		// TODO check sync_token on update
 		$qb = $this->dbConnection->getQueryBuilder();
+		$expr = $qb->expr();
+
 		$qb->update(self::TABLE_METADATA)
 		   ->set('json', $qb->createNamedParameter(json_encode($filesMetadata->jsonSerialize())))
-		   ->set('sync_token', $qb->createNamedParameter('abc'))
+		   ->set('sync_token', $qb->createNamedParameter($this->generateSyncToken()))
 		   ->set('last_update', $qb->createFunction('NOW()'))
-		   ->where($qb->expr()->eq('file_id', $qb->createNamedParameter($filesMetadata->getFileId(), IQueryBuilder::PARAM_INT)));
+		   ->where(
+			   $expr->andX(
+				   $expr->eq('file_id', $qb->createNamedParameter($filesMetadata->getFileId(), IQueryBuilder::PARAM_INT)),
+				   $expr->eq('sync_token', $qb->createNamedParameter($filesMetadata->getSyncToken()))
+			   )
+		   );
 
 		return $qb->executeStatement();
+	}
+
+
+	private function generateSyncToken(): string {
+		$chars = 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890';
+
+		$str = '';
+		$max = strlen($chars);
+		for ($i = 0; $i < 7; $i++) {
+			try {
+				$str .= $chars[random_int(0, $max - 2)];
+			} catch (Exception $e) {
+			}
+		}
+
+		return $str;
 	}
 }

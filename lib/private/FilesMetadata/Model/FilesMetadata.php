@@ -59,6 +59,7 @@ class FilesMetadata implements IFilesMetadata {
 	 */
 	public function importFromDatabase(array $data, string $prefix = ''): IFilesMetadata {
 		try {
+			$this->syncToken = $data[$prefix . 'sync_token'];
 			return $this->import(
 				json_decode($data[$prefix . 'json'] ?? '[]',
 					true,
@@ -345,7 +346,6 @@ class FilesMetadata implements IFilesMetadata {
 
 		return $this->metadata[$key];
 	}
-
 
 	public function jsonSerialize(): array {
 		$data = [];
