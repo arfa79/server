@@ -18,8 +18,6 @@ jobs:
 
     if: ${{ github.repository_owner != 'nextcloud-gmbh' }}
 
-    name: smb-kerberos-sso
-
     steps:
       - name: Checkout server
         uses: actions/checkout@v3
@@ -30,7 +28,7 @@ jobs:
         with:
           repository: nextcloud/user_saml
           path: apps/user_saml
-          ref: stable27
+          ref: stable-5.2
       - name: Pull images
         run: |
           docker pull ghcr.io/icewind1991/samba-krb-test-dc
@@ -62,8 +60,6 @@ jobs:
 
     if: ${{ github.repository_owner != 'nextcloud-gmbh' }}
 
-    name: smb-kerberos-sso
-
     steps:
       - name: Checkout server
         uses: actions/checkout@v3
@@ -74,6 +70,7 @@ jobs:
         with:
           repository: nextcloud/user_saml
           path: apps/user_saml
+          ref: stable-5.2
       - name: Pull images
         run: |
           docker pull ghcr.io/icewind1991/samba-krb-test-dc
@@ -105,8 +102,6 @@ jobs:
 
     if: ${{ github.repository_owner != 'nextcloud-gmbh' }}
 
-    name: smb-kerberos-sso
-
     steps:
       - name: Checkout server
         uses: actions/checkout@v3
@@ -117,7 +112,7 @@ jobs:
         with:
           repository: nextcloud/user_saml
           path: apps/user_saml
-          ref: event-dispatcher
+          ref: stable-5.2
       - name: Pull images
         run: |
           docker pull ghcr.io/icewind1991/samba-krb-test-dc
