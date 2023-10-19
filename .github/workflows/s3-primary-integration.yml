@@ -1,6 +1,16 @@
 name: S3 primary storage integration tests
 on:
   pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '**/*.php'
+      - 'lib/**'
+      - '3rdparty/**'
+      - 'tests/**'
+      - 'vendor-bin/**'
+      - '.php-cs-fixer.dist.php'
+      - 'composer.json'
+      - 'composer.lock'
   push:
     branches:
       - master
