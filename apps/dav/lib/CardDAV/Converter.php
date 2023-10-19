@@ -28,7 +28,11 @@
 namespace OCA\DAV\CardDAV;
 
 use Exception;
+use OCA\DAV\AppInfo\Application;
 use OCP\Accounts\IAccountManager;
+use OCP\IConfig;
+use OCP\IGroup;
+use OCP\IGroupManager;
 use OCP\IURLGenerator;
 use OCP\IImage;
 use OCP\IUser;
@@ -42,12 +46,16 @@ class Converter {
 	/** @var IAccountManager */
 	private $accountManager;
 	private IUserManager $userManager;
+	private IGroupManager $groupManager;
+	private IConfig $config;
 
 	public function __construct(IAccountManager $accountManager,
-		IUserManager $userManager, IURLGenerator $urlGenerator) {
+		IUserManager $userManager, IGroupManager $groupManager, IURLGenerator $urlGenerator, IConfig $config) {
 		$this->accountManager = $accountManager;
 		$this->userManager = $userManager;
+		$this->groupManager = $groupManager;
 		$this->urlGenerator = $urlGenerator;
+		$this->config = $config;
 	}
 
 	public function createCardFromUser(IUser $user): ?VCard {
@@ -149,6 +157,17 @@ class Converter {
 					'X-NC-SCOPE' => IAccountManager::SCOPE_LOCAL,
 				]));
 			}
+		}
+
+		if ($this->config->getAppValue(Application::APP_ID, 'system_addressbook_expose_groups', 'yes') === 'yes') {
+			$groupsToIgnore = explode(',', $this->config->getAppValue(Application::APP_ID, 'system_addressbook_groups_to_ignore', ''));
+			$groupNames = array_reduce($this->groupManager->getUserGroups($user), function ($groupNames, IGroup $group) use ($groupsToIgnore) {
+				if (!in_array($group->getGID(), $groupsToIgnore, true)) {
+					$groupNames[] = $group->getDisplayName();
+				}
+				return $groupNames;
+			}, []);
+			$vCard->add(new Text($vCard, 'CATEGORIES', $groupNames));
 		}
 
 		if ($publish && !empty($cloudId)) {
