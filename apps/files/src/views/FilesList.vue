@@ -25,7 +25,7 @@
 			<!-- Current folder breadcrumbs -->
 			<BreadCrumbs :path="dir" @reload="fetchContent">
 				<template #actions>
-					<NcButton v-if="canShare"
+					<NcButton v-if="canShare && filesListWidth >= 512"
 						:aria-label="shareButtonLabel"
 						:class="{ 'files-list__header-share-button--shared': shareButtonType }"
 						:title="shareButtonLabel"
@@ -46,6 +46,18 @@
 				</template>
 			</BreadCrumbs>
 
+			<NcButton v-if="filesListWidth >= 512"
+				:aria-label="gridViewButtonLabel"
+				:title="gridViewButtonLabel"
+				class="files-list__header-grid-button"
+				type="tertiary"
+				@click="toggleGridView">
+				<template #icon>
+					<ListViewIcon v-if="userConfig.grid_view" />
+					<ViewGridIcon v-else />
+				</template>
+			</NcButton>
+
 			<!-- Secondary loading indicator -->
 			<NcLoadingIcon v-if="isRefreshing" class="files-list__refresh-icon" />
 		</div>
@@ -63,7 +75,7 @@
 			data-cy-files-content-empty>
 			<template #action>
 				<NcButton v-if="dir !== '/'"
-					aria-label="t('files', 'Go to the previous folder')"
+					:aria-label="t('files', 'Go to the previous folder')"
 					type="primary"
 					:to="toPreviousDir">
 					{{ t('files', 'Go back') }}
@@ -89,22 +101,25 @@ import type { Upload } from '@nextcloud/upload'
 import type { UserConfig } from '../types.ts'
 import type { View, ContentsWithRoot } from '@nextcloud/files'
 
+import { emit } from '@nextcloud/event-bus'
 import { Folder, Node, Permission } from '@nextcloud/files'
 import { getCapabilities } from '@nextcloud/capabilities'
 import { join, dirname } from 'path'
 import { orderBy } from 'natural-orderby'
-import { translate } from '@nextcloud/l10n'
-import { UploadPicker } from '@nextcloud/upload'
+import { translate, translatePlural } from '@nextcloud/l10n'
 import { Type } from '@nextcloud/sharing'
+import { UploadPicker } from '@nextcloud/upload'
 import Vue from 'vue'
 
+import LinkIcon from 'vue-material-design-icons/Link.vue'
+import ListViewIcon from 'vue-material-design-icons/FormatListBulletedSquare.vue'
 import NcAppContent from '@nextcloud/vue/dist/Components/NcAppContent.js'
 import NcButton from '@nextcloud/vue/dist/Components/NcButton.js'
 import NcEmptyContent from '@nextcloud/vue/dist/Components/NcEmptyContent.js'
 import NcIconSvgWrapper from '@nextcloud/vue/dist/Components/NcIconSvgWrapper.js'
 import NcLoadingIcon from '@nextcloud/vue/dist/Components/NcLoadingIcon.js'
-import LinkIcon from 'vue-material-design-icons/Link.vue'
 import ShareVariantIcon from 'vue-material-design-icons/ShareVariant.vue'
+import ViewGridIcon from 'vue-material-design-icons/ViewGrid.vue'
 
 import { action as sidebarAction } from '../actions/sidebarAction.ts'
 import { useFilesStore } from '../store/files.ts'
@@ -115,6 +130,7 @@ import { useUserConfigStore } from '../store/userconfig.ts'
 import { useViewConfigStore } from '../store/viewConfig.ts'
 import BreadCrumbs from '../components/BreadCrumbs.vue'
 import FilesListVirtual from '../components/FilesListVirtual.vue'
+import filesListWidthMixin from '../mixins/filesListWidth.ts'
 import filesSortingMixin from '../mixins/filesSorting.ts'
 import logger from '../logger.js'
 
@@ -127,6 +143,7 @@ export default Vue.extend({
 		BreadCrumbs,
 		FilesListVirtual,
 		LinkIcon,
+		ListViewIcon,
 		NcAppContent,
 		NcButton,
 		NcEmptyContent,
@@ -134,9 +151,11 @@ export default Vue.extend({
 		NcLoadingIcon,
 		ShareVariantIcon,
 		UploadPicker,
+		ViewGridIcon,
 	},
 
 	mixins: [
+		filesListWidthMixin,
 		filesSortingMixin,
 	],
 
@@ -295,6 +314,12 @@ export default Vue.extend({
 			return Type.SHARE_TYPE_USER
 		},
 
+		gridViewButtonLabel() {
+			return this.userConfig.grid_view
+				? this.t('files', 'Switch to list view')
+				: this.t('files', 'Switch to grid view')
+		},
+
 		canUpload() {
 			return this.currentFolder && (this.currentFolder.permissions & Permission.CREATE) !== 0
 		},
@@ -326,6 +351,15 @@ export default Vue.extend({
 				this.$refs.filesListVirtual.$el.scrollTop = 0
 			}
 		},
+
+		dirContents(contents) {
+			logger.debug('Directory contents changed', { view: this.currentView, folder: this.currentFolder, contents })
+			emit('files:list:updated', { view: this.currentView, folder: this.currentFolder, contents })
+		},
+	},
+
+	mounted() {
+		this.fetchContent()
 	},
 
 	methods: {
@@ -333,6 +367,11 @@ export default Vue.extend({
 			this.loading = true
 			const dir = this.dir
 			const currentView = this.currentView
+
+			if (!currentView) {
+				logger.debug('The current view doesn\'t exists or is not ready.', { currentView })
+				return
+			}
 
 			// If we have a cancellable promise ongoing, cancel it
 			if (typeof this.promise?.cancel === 'function') {
@@ -351,7 +390,7 @@ export default Vue.extend({
 
 				// Define current directory children
 				// TODO: make it more official
-				folder._children = contents.map(node => node.fileid)
+				Vue.set(folder, '_children', contents.map(node => node.fileid))
 
 				// If we're in the root dir, define the root
 				if (dir === '/') {
@@ -415,7 +454,12 @@ export default Vue.extend({
 			sidebarAction.exec(this.currentFolder, this.currentView, this.currentFolder.path)
 		},
 
+		toggleGridView() {
+			this.userConfigStore.update('grid_view', !this.userConfig.grid_view)
+		},
+
 		t: translate,
+		n: translatePlural,
 	},
 })
 </script>
@@ -427,6 +471,7 @@ export default Vue.extend({
 	overflow: hidden;
 	flex-direction: column;
 	max-height: 100%;
+	position: relative;
 }
 
 $margin: 4px;
@@ -435,11 +480,12 @@ $navigationToggleSize: 50px;
 .files-list {
 	&__header {
 		display: flex;
-		align-content: center;
+		align-items: center;
 		// Do not grow or shrink (vertically)
 		flex: 0 0;
 		// Align with the navigation toggle icon
 		margin: $margin $margin $margin $navigationToggleSize;
+		max-width: 100%;
 		> * {
 			// Do not grow or shrink (horizontally)
 			// Only the breadcrumbs shrinks
