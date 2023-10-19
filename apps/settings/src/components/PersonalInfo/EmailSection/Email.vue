@@ -29,7 +29,7 @@
 				autocomplete="email"
 				:placeholder="inputPlaceholder"
 				:value="email"
-				:aria-describedby="helperText ? `${inputId}-helper-text` : ''"
+				:aria-describedby="helperText ? `${inputId}-helper-text` : undefined"
 				autocapitalize="none"
 				autocorrect="off"
 				@input="onEmailChange">
