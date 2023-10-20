@@ -60,6 +60,7 @@ jobs:
         include:
           - php-versions: '8.3'
             database-only: false
+            coverage: true
 
     name: SQLite (PHP ${{ matrix.php-versions }}) - ${{ matrix.database-only && 'database' || 'all' }} tests
 
@@ -81,9 +82,8 @@ jobs:
         with:
           php-version: ${{ matrix.php-versions }}
           # https://docs.nextcloud.com/server/stable/admin_manual/installation/source_installation.html#prerequisites-for-manual-installation
-          extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, openssl, pcntl, posix, session, simplexml, xmlreader, xmlwriter, zip, zlib, sqlite, pdo_sqlite
           extensions: bz2, ctype, curl, dom, fileinfo, gd, iconv, intl, json, libxml, mbstring, openssl, pcntl, posix, redis, session, simplexml, xmlreader, xmlwriter, zip, zlib, sqlite, pdo_sqlite
-          coverage: none
+          coverage: ${{ matrix.coverage && 'xdebug' || 'none' }}
           ini-file: development
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -107,7 +107,15 @@ jobs:
 
       - name: PHPUnit full testsuite
         if: ${{ ! matrix.database-only }}
-        run: composer run test
+        run: composer run test ${{ matrix.coverage && ' -- --coverage-clover ./clover.xml' || '' }}
+
+      - name: Upload code coverage
+        if: ${{ !cancelled() && matrix.coverage }}
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./clover.xml
+          fail_ci_if_error: true
+          flags: unit
 
       - name: Print logs
         if: always()
