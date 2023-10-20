@@ -105,11 +105,6 @@
       <code>$baseuri</code>
     </UndefinedGlobalVariable>
   </file>
-  <file src="apps/dav/lib/AppInfo/Application.php">
-    <InvalidArgument>
-      <code>CalendarDeletionDefaultUpdaterListener::class</code>
-    </InvalidArgument>
-  </file>
   <file src="apps/dav/lib/CalDAV/BirthdayService.php">
     <UndefinedMethod>
       <code>setDateTime</code>
@@ -439,9 +434,6 @@
     </InvalidNullableReturnType>
   </file>
   <file src="apps/dav/lib/CardDAV/PhotoCache.php">
-    <InvalidNullableReturnType>
-      <code>string</code>
-    </InvalidNullableReturnType>
     <LessSpecificReturnStatement>
       <code><![CDATA[[
 				'Content-Type' => $type,
@@ -451,9 +443,6 @@
     <MoreSpecificReturnType>
       <code>false|array{body: string, Content-Type: string}</code>
     </MoreSpecificReturnType>
-    <NullableReturnStatement>
-      <code>$type</code>
-    </NullableReturnStatement>
   </file>
   <file src="apps/dav/lib/CardDAV/Plugin.php">
     <ImplementedReturnTypeMismatch>
@@ -541,7 +530,6 @@
   <file src="apps/dav/lib/Connector/Sabre/FilesReportPlugin.php">
     <InvalidArgument>
       <code>0</code>
-      <code>200</code>
     </InvalidArgument>
     <InvalidNullableReturnType>
       <code>bool</code>
@@ -1378,9 +1366,6 @@
     </InvalidReturnType>
   </file>
   <file src="apps/settings/lib/AppInfo/Application.php">
-    <InvalidArgument>
-      <code>AppPasswordCreatedActivityListener::class</code>
-    </InvalidArgument>
     <UndefinedInterfaceMethod>
       <code>getSettingsManager</code>
     </UndefinedInterfaceMethod>
@@ -1934,7 +1919,6 @@
     </InvalidReturnStatement>
     <InvalidReturnType>
       <code>\OCP\IServerContainer</code>
-      <code>mixed</code>
     </InvalidReturnType>
     <UndefinedInterfaceMethod>
       <code>getAppDataDir</code>
@@ -2201,17 +2185,7 @@
     </ParamNameMismatch>
   </file>
   <file src="lib/private/Command/ClosureJob.php">
-    <InvalidArgument>
-      <code>[LaravelClosure::class, OpisClosure::class]</code>
-    </InvalidArgument>
-    <ParamNameMismatch>
-      <code>$serializedCallable</code>
-    </ParamNameMismatch>
-  </file>
-  <file src="lib/private/Command/CommandJob.php">
-    <ParamNameMismatch>
-      <code>$serializedCommand</code>
-    </ParamNameMismatch>
+    <InvalidArgument/>
   </file>
   <file src="lib/private/Comments/Manager.php">
     <RedundantCast>
@@ -3157,11 +3131,6 @@
     </ParamNameMismatch>
   </file>
   <file src="lib/private/Repair/RepairMimeTypes.php">
-    <ParamNameMismatch>
-      <code>$out</code>
-    </ParamNameMismatch>
-  </file>
-  <file src="lib/private/Repair/SqliteAutoincrement.php">
     <ParamNameMismatch>
       <code>$out</code>
     </ParamNameMismatch>
