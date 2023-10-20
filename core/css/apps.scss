@@ -1435,3 +1435,20 @@ $outter-margin: math.div($popoveritem-height - $popovericon-size, 2);
 	box-shadow: 0 0 0 4px var(--color-main-background) !important;
 	outline: 2px solid var(--color-main-text) !important;
 }
+
+
+:lang(FA,AR,UR,KU,HE,BN,HI,KN,MR,PS,SI,TA,TE) {
+
+  body {
+    direction: rtl;
+  }
+}
+
+#header-menu-user-menu {
+  right: unset;
+  inset-inline-end: 0;
+}
+
+textarea {
+  unicode-bidi: plaintext;
+}
